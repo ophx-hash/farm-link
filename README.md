@@ -14,6 +14,7 @@ FarmLink is a district-first agri marketplace connecting farmers, customers, sho
 - Express API with health, product, auth, and order endpoints
 - Lucknow-based demo data
 - Ready for further extension into admin, farmer, shop, and trader modules
+- Virtual environment config so the project can run even before real service credentials are created
 
 ## Local setup
 
@@ -32,6 +33,33 @@ npm run dev:api
 npm run dev:mobile
 ```
 
+## Virtual credentials
+The project is already wired to run with placeholder values so you can continue building before creating real accounts.
+
+Use these values in development until you add real credentials:
+
+```env
+PORT=4000
+DISTRICT=Lucknow
+STATE=Uttar Pradesh
+NODE_ENV=development
+
+SUPABASE_URL=https://example-project.supabase.co
+SUPABASE_ANON_KEY=demo-anon-key
+SUPABASE_SERVICE_ROLE_KEY=demo-service-role-key
+
+RAZORPAY_KEY_ID=rzp_test_dummy_key_id
+RAZORPAY_KEY_SECRET=dummy_key_secret
+
+CLOUDINARY_CLOUD_NAME=demo-cloud-name
+CLOUDINARY_API_KEY=demo-api-key
+CLOUDINARY_API_SECRET=demo-api-secret
+
+FIREBASE_PROJECT_ID=demo-farmlink-project
+```
+
+When you later create real accounts, replace these with actual values.
+
 ## API endpoints
 - GET /api/health
 - GET /api/products
@@ -40,10 +68,13 @@ npm run dev:mobile
 - POST /api/auth/signup
 - POST /api/orders
 - GET /api/orders
+- GET /api/admin/dashboard
+- POST /api/shops/bulk-order
+- POST /api/traders/buy
 
 ## Login demo
 ```text
-email: demo@farmlink.in
+email: farmer@farmlink.in
 password: password123
 ```
 
@@ -54,4 +85,4 @@ password: password123
 - Admin panel
 - Payment gateway integration
 - Real database with PostgreSQL and Prisma
-- Deployment to Vercel + Render / Railway
+- Deployment to Vercel + Railway
