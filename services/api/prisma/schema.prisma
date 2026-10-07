@@ -11,13 +11,12 @@ model User {
   id            String   @id @default(cuid())
   name          String
   email         String   @unique
-  phone         String?  @unique
-  passwordHash  String
-  role          Role
-  isVerified    Boolean  @default(false)
-  district      String
-  state         String
-  profileImage  String?
+  phone         String?
+  passwordHash  String?
+  role          UserRole @default(CUSTOMER)
+  district      String?
+  state         String?
+  verified      Boolean  @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -25,319 +24,217 @@ model User {
   customer      Customer?
   shop          Shop?
   trader        Trader?
-  deliveryAgent DeliveryAgent?
   admin         Admin?
-
-  sentMessages  Message[] @relation("sender")
-  receivedMessages Message[] @relation("receiver")
+  orders        Order[]
+  payments      Payment[]
+  notifications Notification[]
 }
 
-enum Role {
+model Farmer {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id])
+  farmName      String
+  farmAddress   String?
+  landSize      String?
+  kycStatus     KycStatus @default(PENDING)
+  rating        Float    @default(0)
+  totalOrders   Int      @default(0)
+  productsCount Int      @default(0)
+  earnings      Float    @default(0)
+  bankAccount   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  products      Product[]
+  orders        Order[]
+}
+
+model Customer {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id])
+  address     String?
+  city        String?
+  preferred   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Shop {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id])
+  shopName    String?
+  gstNumber   String?
+  creditLimit Float   @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orders      Order[]
+}
+
+model Trader {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id])
+  companyName String?
+  warehouse   String?
+  inventory   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orders      Order[]
+}
+
+model Admin {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id])
+  permissions String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  farmerId      String
+  farmer        Farmer   @relation(fields: [farmerId], references: [id])
+  category      ProductCategory
+  name          String
+  description   String?
+  unit          String
+  pricePerUnit  Float
+  stockQuantity Int
+  qualityGrade  String   @default("A")
+  imageUrl      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  orderItems    OrderItem[]
+}
+
+model Order {
+  id            String   @id @default(cuid())
+  orderNumber   String   @unique @default(cuid())
+  farmerId      String?
+  farmer        Farmer?  @relation(fields: [farmerId], references: [id])
+  buyerId       String
+  buyer         User     @relation(fields: [buyerId], references: [id])
+  shopId        String?
+  shop          Shop?    @relation(fields: [shopId], references: [id])
+  traderId      String?
+  trader        Trader?  @relation(fields: [traderId], references: [id])
+  buyerType     BuyerType
+  totalAmount   Float
+  paymentMethod String?
+  status        OrderStatus @default(PENDING)
+  paymentStatus PaymentStatus @default(PENDING)
+  deliveryDate  DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  items         OrderItem[]
+  payments      Payment[]
+  deliveries    Delivery[]
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id])
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  quantity    Int
+  price       Float
+  total       Float
+  createdAt   DateTime @default(now())
+}
+
+model Payment {
+  id             String   @id @default(cuid())
+  orderId        String
+  order          Order    @relation(fields: [orderId], references: [id])
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  provider       String   @default("RAZORPAY")
+  amount         Float
+  status         PaymentStatus @default(PENDING)
+  providerRef    String?
+  signature      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Delivery {
+  id            String   @id @default(cuid())
+  orderId       String
+  order         Order    @relation(fields: [orderId], references: [id])
+  status        DeliveryStatus @default(PENDING)
+  assignedAgent String?
+  trackingCode  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  title       String
+  body        String
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+enum UserRole {
   FARMER
   CUSTOMER
   SHOP_OWNER
   TRADER
-  DELIVERY_AGENT
   ADMIN
 }
 
-model Farmer {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  user            User     @relation(fields: [userId], references: [id])
-  farmName        String
-  farmAddress     String
-  landSize        String?  // in acres
-  kycStatus       String   @default("PENDING") // PENDING, APPROVED, REJECTED
-  bankAccount     String?
-  accountHolder   String?
-  ifscCode        String?
-  rating          Float    @default(0)
-  totalOrders     Int      @default(0)
-  productsCount   Int      @default(0)
-  verifiedAt      DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  products        Product[]
-  orders          Order[] @relation("farmer")
-}
-
-model Customer {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  user            User     @relation(fields: [userId], references: [id])
-  address         String?
-  city            String?
-  preferredDeliveryArea String?
-  totalOrders     Int      @default(0)
-  totalSpent      Float    @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  orders          Order[] @relation("customer")
-}
-
-model Shop {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  user            User     @relation(fields: [userId], references: [id])
-  shopName        String
-  gstNumber       String?
-  address         String
-  city            String
-  shopPhone       String?
-  creditLimit     Float    @default(0)
-  creditUsed      Float    @default(0)
-  rating          Float    @default(0)
-  totalOrders     Int      @default(0)
-  verified        Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  orders          Order[] @relation("shop")
-}
-
-model Trader {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  user            User     @relation(fields: [userId], references: [id])
-  companyName     String
-  warehouseAddress String
-  warehouseCity   String
-  storageCapacity Float    // in tons
-  verified        Boolean  @default(false)
-  rating          Float    @default(0)
-  totalBought     Float    @default(0)
-  totalSold       Float    @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  buyOrders       Order[] @relation("trader_buyer")
-  sellOrders      Order[] @relation("trader_seller")
-  inventory       TraderInventory[]
-}
-
-model DeliveryAgent {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  user            User     @relation(fields: [userId], references: [id])
-  vehicleType     String   // bike, auto, van, truck
-  vehicleNumber   String?
-  rating          Float    @default(0)
-  totalDeliveries Int      @default(0)
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  deliveries      Delivery[]
-}
-
-model Admin {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  user            User     @relation(fields: [userId], references: [id])
-  permissions     String[]  // JSON array of permissions
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-}
-
-model Product {
-  id              String   @id @default(cuid())
-  farmerId        String
-  farmer          Farmer   @relation(fields: [farmerId], references: [id])
-  category        String   // Grains, Vegetables, Fruits, Spices
-  name            String
-  description     String?
-  unit            String   // kg, dozen, bundle, etc
-  pricePerUnit    Float
-  minOrderQuantity Float  @default(1)
-  stockQuantity   Float
-  qualityGrade    String?  // A, B, C
-  harvestDate     DateTime?
-  expiryDate      DateTime?
-  images          String[] // array of image URLs
-  active          Boolean  @default(true)
-  viewCount       Int      @default(0)
-  ratingCount     Int      @default(0)
-  totalRating     Float    @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  orderItems      OrderItem[]
-  reviews         Review[]
-}
-
-model Order {
-  id              String   @id @default(cuid())
-  orderNumber     String   @unique
-  farmerId        String
-  farmer          Farmer   @relation("farmer", fields: [farmerId], references: [id])
-  
-  buyerId         String
-  buyerType       BuyerType  // CUSTOMER, SHOP, TRADER
-  customer        Customer? @relation("customer", fields: [customerId], references: [id])
-  customerId      String?
-  shop            Shop?     @relation("shop", fields: [shopId], references: [id])
-  shopId          String?
-  trader          Trader?   @relation("trader_buyer", fields: [traderId], references: [id])
-  traderId        String?
-  
-  sellerId        String?   // for trader as seller
-  sellerType      String?   // FARMER or TRADER
-  sellerTrader    Trader?   @relation("trader_seller", fields: [sellerTraderId], references: [id])
-  sellerTraderId  String?
-  
-  totalAmount     Float
-  status          OrderStatus @default(PENDING)
-  paymentStatus   PaymentStatus @default(PENDING)
-  paymentMethod   String?   // COD, ONLINE, CREDIT
-  orderDate       DateTime  @default(now())
-  deliveryDate    DateTime?
-  
-  items           OrderItem[]
-  payment         Payment?
-  delivery        Delivery?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+enum ProductCategory {
+  GRAINS
+  VEGETABLES
+  FRUITS
+  SPICES
+  OTHER
 }
 
 enum BuyerType {
   CUSTOMER
   SHOP
   TRADER
+  FARMER
 }
 
 enum OrderStatus {
   PENDING
-  CONFIRMED
-  PROCESSING
-  READY_FOR_PICKUP
-  IN_TRANSIT
+  ACCEPTED
+  PACKING
+  DISPATCHED
   DELIVERED
   CANCELLED
-  RETURNED
 }
 
 enum PaymentStatus {
   PENDING
-  COMPLETED
+  PAID
   FAILED
   REFUNDED
 }
 
-model OrderItem {
-  id              String   @id @default(cuid())
-  orderId         String
-  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId       String
-  product         Product  @relation(fields: [productId], references: [id])
-  quantity        Float
-  unitPrice       Float
-  totalPrice      Float
-  createdAt       DateTime @default(now())
-}
-
-model Payment {
-  id              String   @id @default(cuid())
-  orderId         String   @unique
-  order           Order    @relation(fields: [orderId], references: [id])
-  amount          Float
-  method          String   // RAZORPAY, UPI, BANK, COD
-  status          PaymentStatus @default(PENDING)
-  transactionId   String?
-  paymentGatewayResponse String? // JSON
-  paidAt          DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-}
-
-model Delivery {
-  id              String   @id @default(cuid())
-  orderId         String   @unique
-  order           Order    @relation(fields: [orderId], references: [id])
-  driverId        String?
-  driver          DeliveryAgent? @relation(fields: [driverId], references: [id])
-  status          DeliveryStatus @default(ASSIGNED)
-  assignedAt      DateTime @default(now())
-  pickedUpAt      DateTime?
-  deliveredAt     DateTime?
-  proofImage      String?
-  driverNotes     String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-}
-
 enum DeliveryStatus {
+  PENDING
   ASSIGNED
-  PICKED_UP
   IN_TRANSIT
   DELIVERED
-  FAILED
-  CANCELLED
 }
 
-model Hub {
-  id              String   @id @default(cuid())
-  name            String
-  district        String
-  city            String
-  state           String
-  address         String
-  storageType     String   // NORMAL, COLD, DRY
-  capacity        Float    // in tons
-  currentStock    Float    @default(0)
-  managerName     String?
-  managerPhone    String?
-  active          Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-}
-
-model TraderInventory {
-  id              String   @id @default(cuid())
-  traderId        String
-  trader          Trader   @relation(fields: [traderId], references: [id])
-  productName     String
-  quantity        Float
-  batchCode       String
-  costPrice       Float
-  sellingPrice    Float
-  storageLocation String?
-  addedDate       DateTime @default(now())
-  expiryDate      DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-}
-
-model Review {
-  id              String   @id @default(cuid())
-  productId       String
-  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  userId          String
-  rating          Int      // 1-5
-  comment         String?
-  createdAt       DateTime @default(now())
-}
-
-model Message {
-  id              String   @id @default(cuid())
-  senderId        String
-  sender          User     @relation("sender", fields: [senderId], references: [id])
-  receiverId      String
-  receiver        User     @relation("receiver", fields: [receiverId], references: [id])
-  content         String
-  isRead          Boolean  @default(false)
-  createdAt       DateTime @default(now())
-}
-
-model Notification {
-  id              String   @id @default(cuid())
-  userId          String
-  title           String
-  message         String
-  type            String   // ORDER, PAYMENT, DELIVERY, SYSTEM
-  relatedId       String?  // orderId, productId, etc
-  isRead          Boolean  @default(false)
-  createdAt       DateTime @default(now())
+enum KycStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }

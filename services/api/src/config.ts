@@ -3,21 +3,23 @@ export const config = {
   port: Number(process.env.PORT) || 4000,
   district: process.env.DISTRICT || 'Lucknow',
   state: process.env.STATE || 'Uttar Pradesh',
+  databaseUrl: process.env.DATABASE_URL || 'postgresql://postgres:Farmlink$098@db.zhcvjogaqneabbovjhsq.supabase.co:5432/postgres',
   supabase: {
-    url: process.env.SUPABASE_URL || 'https://example-project.supabase.co',
-    anonKey: process.env.SUPABASE_ANON_KEY || 'demo-anon-key',
-    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || 'demo-service-role-key',
+    url: process.env.SUPABASE_URL || 'https://zhcvjogaqneabbovjhsq.supabase.co',
+    anonKey: process.env.SUPABASE_ANON_KEY || 'sb_publishable_orI6xRh5G0_ClB_xvSwPtw_bzcwIKjg',
+    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
   },
   razorpay: {
-    keyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_dummy_key_id',
-    keySecret: process.env.RAZORPAY_KEY_SECRET || 'dummy_key_secret',
+    keyId: process.env.RAZORPAY_KEY_ID || '',
+    keySecret: process.env.RAZORPAY_KEY_SECRET || '',
   },
   cloudinary: {
-    cloudName: process.env.CLOUDINARY_CLOUD_NAME || 'demo-cloud-name',
-    apiKey: process.env.CLOUDINARY_API_KEY || 'demo-api-key',
-    apiSecret: process.env.CLOUDINARY_API_SECRET || 'demo-api-secret',
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME || '',
+    apiKey: process.env.CLOUDINARY_API_KEY || '',
+    apiSecret: process.env.CLOUDINARY_API_SECRET || '',
   },
   firebase: {
-    projectId: process.env.FIREBASE_PROJECT_ID || 'demo-farmlink-project',
+    projectId: process.env.FIREBASE_PROJECT_ID || '',
   },
+  jwtSecret: process.env.JWT_SECRET || 'farm-link-demo-secret',
 };
