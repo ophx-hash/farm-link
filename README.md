@@ -1,59 +1,57 @@
 # FarmLink
 
-FarmLink is a district-first agri marketplace built to connect farmers, customers, shops, and traders in one ecosystem.
+FarmLink is a district-first agri marketplace connecting farmers, customers, shops, and traders. This version is optimized for a Lucknow launch and designed to expand into city, state, and national scale.
 
-## Goals
-- Help farmers sell directly to buyers without heavy middlemen
-- Enable customers to buy fresh produce easily
-- Support local shops and bulk traders with wholesale ordering
-- Start from one district and scale to city, state, and country level
+## Overview
+- Farmers can list grains, vegetables, fruits, and spices
+- Customers can browse and buy products directly
+- Shops can place bulk orders
+- Traders can source and sell at scale
+- District-based hub model helps reduce spoilage and improve logistics
 
-## Tech stack
-- Mobile app: React Native + Expo
-- Backend: Node.js + Express + TypeScript
-- Database: PostgreSQL + Prisma (planned)
-- Payments: Razorpay (planned)
-- Deployment: Vercel / Railway / Render
+## Current MVP features
+- Mobile app starter with product listing, dashboard, profile, and order screens
+- Express API with health, product, auth, and order endpoints
+- Lucknow-based demo data
+- Ready for further extension into admin, farmer, shop, and trader modules
 
-## Current repo status
-This repository currently includes:
-- mobile app starter
-- backend starter API
-- project structure for a scalable agriculture marketplace
+## Local setup
 
-## Project structure
-```bash
-farm-link/
-├── apps/
-│   └── mobile/
-├── services/
-│   └── api/
-├── README.md
-├── package.json
-├── .gitignore
-└── docs/
-```
-
-## Quick start
-
-### 1) Install dependencies
+### 1. Install root dependencies
 ```bash
 npm install
 ```
 
-### 2) Start backend
+### 2. Start backend
 ```bash
 npm run dev:api
 ```
 
-### 3) Start mobile app
+### 3. Start mobile app
 ```bash
 npm run dev:mobile
 ```
 
-## Backend API endpoints
+## API endpoints
 - GET /api/health
 - GET /api/products
+- GET /api/products/:id
+- POST /api/auth/login
+- POST /api/auth/signup
+- POST /api/orders
+- GET /api/orders
 
-## Notes
-This is the initial MVP scaffolding for the app, and it is designed to grow into a full district-to-national agri marketplace.
+## Login demo
+```text
+email: demo@farmlink.in
+password: password123
+```
+
+## Future roadmap
+- Farmer dashboard
+- Shop bulk order flow
+- Trader module
+- Admin panel
+- Payment gateway integration
+- Real database with PostgreSQL and Prisma
+- Deployment to Vercel + Render / Railway
