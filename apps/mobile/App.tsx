@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -9,546 +9,847 @@ import {
   TouchableOpacity,
   View,
   Image,
-  FlatList,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 
-const initialProducts = [
-  {
-    id: 'p1',
-    name: 'Lucknow Wheat',
-    category: 'Grains',
-    price: '₹42/kg',
-    farmer: 'Ramesh Verma',
-    location: 'Lucknow',
-    stock: '80 kg',
-    rating: 4.8,
-    image:
-      'https://images.unsplash.com/photo-1576045057995-568f588f82fb?auto=format&fit=crop&w=900&q=80',
-  },
-  {
-    id: 'p2',
-    name: 'Pink Onion',
-    category: 'Vegetables',
-    price: '₹30/kg',
-    farmer: 'Suresh Yadav',
-    location: 'Lucknow',
-    stock: '120 kg',
-    rating: 4.7,
-    image:
-      'https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=900&q=80',
-  },
-  {
-    id: 'p3',
-    name: 'Dry Chili',
-    category: 'Spices',
-    price: '₹180/kg',
-    farmer: 'Asha Singh',
-    location: 'Lucknow',
-    stock: '45 kg',
-    rating: 4.9,
-    image:
-      'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=900&q=80',
-  },
-  {
-    id: 'p4',
-    name: 'Banana',
-    category: 'Fruits',
-    price: '₹55/dozen',
-    farmer: 'Kiran Mishra',
-    location: 'Lucknow',
-    stock: '210 dozen',
-    rating: 4.6,
-    image:
-      'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?auto=format&fit=crop&w=900&q=80',
-  },
-  {
-    id: 'p5',
-    name: 'Turmeric',
-    category: 'Spices',
-    price: '₹160/kg',
-    farmer: 'Meena Devi',
-    location: 'Lucknow',
-    stock: '65 kg',
-    rating: 4.8,
-    image:
-      'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716?auto=format&fit=crop&w=900&q=80',
-  },
-  {
-    id: 'p6',
-    name: 'Mango',
-    category: 'Fruits',
-    price: '₹120/kg',
-    farmer: 'Sunil Singh',
-    location: 'Lucknow',
-    stock: '95 kg',
-    rating: 4.9,
-    image:
-      'https://images.unsplash.com/photo-1553279768-865429fa0078?auto=format&fit=crop&w=900&q=80',
-  },
-];
+type Screen = 'auth' | 'home' | 'products' | 'orders' | 'profile' | 'farmer' | 'shop' | 'trader' | 'admin';
 
-const stats = [
-  { label: 'Farmers', value: '140+' },
-  { label: 'Orders', value: '2.4K' },
-  { label: 'Happy users', value: '1.1K' },
-  { label: 'District hub', value: 'Lucknow' },
-];
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: 'FARMER' | 'CUSTOMER' | 'SHOP_OWNER' | 'TRADER' | 'ADMIN';
+  district: string;
+}
 
-const tabs = ['Home', 'Products', 'Orders', 'Profile'];
+interface Product {
+  id: string;
+  name: string;
+  category: string;
+  pricePerUnit: number;
+  unit: string;
+  stockQuantity: number;
+  farmer: string;
+}
+
+const API_URL = 'http://localhost:4000/api';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('Home');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentScreen, setCurrentScreen] = useState<Screen>('auth');
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('demo@farmlink.in');
   const [password, setPassword] = useState('password123');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [orders, setOrders] = useState([]);
 
-  const loggedInLabel = useMemo(() => (isLoggedIn ? 'Farmer + Customer Access' : 'Login to continue'), [isLoggedIn]);
-
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Missing details', 'Please enter email and password.');
+      Alert.alert('Error', 'Please enter email and password');
       return;
     }
 
-    setIsLoggedIn(true);
-    Alert.alert('Welcome', 'You are now logged in to FarmLink.');
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
+        setCurrentScreen('home');
+        Alert.alert('Success', `Welcome ${data.user.name}!`);
+      } else {
+        Alert.alert('Error', 'Invalid credentials');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to connect to server');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleOrder = (productName: string) => {
-    Alert.alert('Order placed', `${productName} has been placed successfully.`);
+  const fetchProducts = async () => {
+    try {
+      const response = await fetch(`${API_URL}/products`);
+      const data = await response.json();
+      setProducts(data.products);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to load products');
+    }
   };
 
-  const renderHome = () => (
-    <View style={styles.contentSection}>
-      <View style={styles.heroCard}>
-        <Text style={styles.heroSmall}>District launch: Lucknow</Text>
-        <Text style={styles.heroTitle}>Fresh food, direct from farmers</Text>
-        <Text style={styles.heroText}>
-          Buy grains, vegetables, fruits and spices from verified local producers with transparent pricing and easy delivery.
-        </Text>
-        <TouchableOpacity style={styles.primaryButton} onPress={() => setActiveTab('Products')}>
-          <Text style={styles.primaryButtonText}>Browse products</Text>
+  const handleLogout = () => {
+    setUser(null);
+    setCurrentScreen('auth');
+    setEmail('demo@farmlink.in');
+    setPassword('password123');
+    Alert.alert('Logged out', 'You have been logged out successfully');
+  };
+
+  // Login Screen
+  const renderAuthScreen = () => (
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.authContainer}>
+        <View style={styles.logoContainer}>
+          <Text style={styles.appTitle}>🌾 FarmLink</Text>
+          <Text style={styles.subtitle}>Lucknow | District Launch</Text>
+        </View>
+
+        <View style={styles.authCard}>
+          <Text style={styles.authTitle}>Login to your account</Text>
+
+          <TextInput
+            style={styles.input}
+            placeholder="Email address"
+            placeholderTextColor="#999"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            placeholderTextColor="#999"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+
+          <TouchableOpacity
+            style={styles.loginButton}
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.loginButtonText}>Login</Text>
+            )}
+          </TouchableOpacity>
+
+          <Text style={styles.demoText}>Demo: farmer@farmlink.in / password123</Text>
+        </View>
+
+        <View style={styles.statsContainer}>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>140+</Text>
+            <Text style={styles.statLabel}>Farmers</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>2.4K</Text>
+            <Text style={styles.statLabel}>Orders</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>1.1K</Text>
+            <Text style={styles.statLabel}>Users</Text>
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+
+  // Home Screen
+  const renderHomeScreen = () => (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.greeting}>Hello, {user?.name}!</Text>
+          <Text style={styles.role}>{user?.role}</Text>
+        </View>
+        <TouchableOpacity onPress={handleLogout}>
+          <Text style={styles.logoutButton}>Logout</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.statsRow}>
-        {stats.map((item) => (
-          <View key={item.label} style={styles.statCard}>
-            <Text style={styles.statValue}>{item.value}</Text>
-            <Text style={styles.statLabel}>{item.label}</Text>
-          </View>
-        ))}
+      <ScrollView contentContainerStyle={styles.homeContent}>
+        <View style={styles.heroSection}>
+          <Text style={styles.heroTitle}>Welcome to FarmLink</Text>
+          <Text style={styles.heroText}>Direct from farms to your doorstep</Text>
+        </View>
+
+        <View style={styles.quickActions}>
+          {user?.role === 'FARMER' && (
+            <>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => {
+                  setCurrentScreen('farmer');
+                }}
+              >
+                <Text style={styles.actionIcon}>🌾</Text>
+                <Text style={styles.actionLabel}>My Products</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => setCurrentScreen('orders')}
+              >
+                <Text style={styles.actionIcon}>📦</Text>
+                <Text style={styles.actionLabel}>Orders</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {user?.role === 'CUSTOMER' && (
+            <>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => {
+                  fetchProducts();
+                  setCurrentScreen('products');
+                }}
+              >
+                <Text style={styles.actionIcon}>🛒</Text>
+                <Text style={styles.actionLabel}>Shop</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => setCurrentScreen('orders')}
+              >
+                <Text style={styles.actionIcon}>📦</Text>
+                <Text style={styles.actionLabel}>My Orders</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {user?.role === 'SHOP_OWNER' && (
+            <>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => {
+                  fetchProducts();
+                  setCurrentScreen('shop');
+                }}
+              >
+                <Text style={styles.actionIcon}>🏪</Text>
+                <Text style={styles.actionLabel}>Bulk Order</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => setCurrentScreen('orders')}
+              >
+                <Text style={styles.actionIcon}>📋</Text>
+                <Text style={styles.actionLabel}>My Orders</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {user?.role === 'TRADER' && (
+            <>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => {
+                  fetchProducts();
+                  setCurrentScreen('trader');
+                }}
+              >
+                <Text style={styles.actionIcon}>💼</Text>
+                <Text style={styles.actionLabel}>Buy/Sell</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => setCurrentScreen('orders')}
+              >
+                <Text style={styles.actionIcon}>📦</Text>
+                <Text style={styles.actionLabel}>Inventory</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {user?.role === 'ADMIN' && (
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => setCurrentScreen('admin')}
+            >
+              <Text style={styles.actionIcon}>⚙️</Text>
+              <Text style={styles.actionLabel}>Dashboard</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+
+  // Products Screen
+  const renderProductsScreen = () => (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.screenHeader}>
+        <TouchableOpacity onPress={() => setCurrentScreen('home')}>
+          <Text style={styles.backButton}>← Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.screenTitle}>Available Products</Text>
       </View>
 
-      <Text style={styles.sectionHeading}>Featured products</Text>
-      <FlatList
-        data={initialProducts.slice(0, 3)}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 10 }}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.featureCard}>
-            <Image source={{ uri: item.image }} style={styles.featureImage} />
-            <Text style={styles.cardTitle}>{item.name}</Text>
-            <Text style={styles.cardText}>{item.price}</Text>
-            <TouchableOpacity style={styles.secondaryButton} onPress={() => handleOrder(item.name)}>
-              <Text style={styles.secondaryButtonText}>Order now</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      />
-    </View>
-  );
-
-  const renderProducts = () => (
-    <View style={styles.contentSection}>
-      <Text style={styles.sectionHeading}>Available in Lucknow</Text>
-      {initialProducts.map((product) => (
-        <View key={product.id} style={styles.productCard}>
-          <Image source={{ uri: product.image }} style={styles.productImage} />
-          <View style={styles.productInfo}>
-            <View style={styles.productHeaderRow}>
-              <Text style={styles.productTitle}>{product.name}</Text>
-              <Text style={styles.productPrice}>{product.price}</Text>
-            </View>
-            <Text style={styles.metaText}>{product.category}</Text>
-            <Text style={styles.metaText}>Farmer: {product.farmer}</Text>
-            <Text style={styles.metaText}>Location: {product.location}</Text>
-            <Text style={styles.metaText}>Stock: {product.stock}</Text>
-            <View style={styles.productFooterRow}>
-              <Text style={styles.ratingText}>⭐ {product.rating}</Text>
-              <TouchableOpacity style={styles.secondaryButton} onPress={() => handleOrder(product.name)}>
-                <Text style={styles.secondaryButtonText}>Buy</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      ))}
-    </View>
-  );
-
-  const renderOrders = () => (
-    <View style={styles.contentSection}>
-      <Text style={styles.sectionHeading}>Recent orders</Text>
-      {[
-        { id: 'o1', item: 'Red Onion', status: 'Delivered', total: '₹240' },
-        { id: 'o2', item: 'Dry Chili', status: 'In transit', total: '₹540' },
-        { id: 'o3', item: 'Lucknow Wheat', status: 'Confirmed', total: '₹420' },
-      ].map((order) => (
-        <View key={order.id} style={styles.orderCard}>
-          <Text style={styles.orderItem}>{order.item}</Text>
-          <Text style={styles.orderStatus}>{order.status}</Text>
-          <Text style={styles.orderTotal}>{order.total}</Text>
-        </View>
-      ))}
-    </View>
-  );
-
-  const renderProfile = () => (
-    <View style={styles.contentSection}>
-      <Text style={styles.sectionHeading}>Profile</Text>
-      <View style={styles.profileCard}>
-        <Text style={styles.profileTitle}>Welcome to FarmLink</Text>
-        <Text style={styles.metaText}>User role: Farmer + Customer</Text>
-        <Text style={styles.metaText}>District: Lucknow</Text>
-        <Text style={styles.metaText}>Status: {loggedInLabel}</Text>
-
-        {!isLoggedIn ? (
-          <View style={{ marginTop: 16 }}>
-            <TextInput
-              style={styles.input}
-              placeholder="Email"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
-            <TouchableOpacity style={styles.primaryButton} onPress={handleLogin}>
-              <Text style={styles.primaryButtonText}>Login</Text>
+      <ScrollView contentContainerStyle={styles.productsList}>
+        {products.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>No products available</Text>
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={fetchProducts}
+            >
+              <Text style={styles.primaryButtonText}>Refresh</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          <TouchableOpacity style={styles.primaryButton} onPress={() => setIsLoggedIn(false)}>
-            <Text style={styles.primaryButtonText}>Logout</Text>
-          </TouchableOpacity>
+          products.map((product) => (
+            <View key={product.id} style={styles.productCard}>
+              <Text style={styles.productName}>{product.name}</Text>
+              <Text style={styles.productCategory}>{product.category}</Text>
+              <Text style={styles.productPrice}>₹{product.pricePerUnit}/{product.unit}</Text>
+              <Text style={styles.productStock}>Stock: {product.stockQuantity}</Text>
+              <TouchableOpacity style={styles.addButton}>
+                <Text style={styles.addButtonText}>Add to Cart</Text>
+              </TouchableOpacity>
+            </View>
+          ))
         )}
-      </View>
-    </View>
-  );
-
-  const renderScreen = () => {
-    if (activeTab === 'Products') return renderProducts();
-    if (activeTab === 'Orders') return renderOrders();
-    if (activeTab === 'Profile') return renderProfile();
-    return renderHome();
-  };
-
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f5f9f5" />
-      <View style={styles.header}>
-        <Text style={styles.appName}>FarmLink</Text>
-        <Text style={styles.location}>Lucknow</Text>
-      </View>
-
-      {renderScreen()}
-
-      <View style={styles.tabBar}>
-        {tabs.map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            style={[styles.tabButton, activeTab === tab && styles.tabButtonActive]}
-            onPress={() => setActiveTab(tab)}
-          >
-            <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>{tab}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
+
+  // Farmer Dashboard Screen
+  const renderFarmerScreen = () => (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.screenHeader}>
+        <TouchableOpacity onPress={() => setCurrentScreen('home')}>
+          <Text style={styles.backButton}>← Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.screenTitle}>My Products</Text>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.farmerContent}>
+        <View style={styles.infoCard}>
+          <Text style={styles.infoTitle}>Manage your products</Text>
+          <TouchableOpacity style={styles.primaryButton}>
+            <Text style={styles.primaryButtonText}>+ Add New Product</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.statsGrid}>
+          <View style={styles.statBox}>
+            <Text style={styles.statBoxNumber}>6</Text>
+            <Text style={styles.statBoxLabel}>Products</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statBoxNumber}>145</Text>
+            <Text style={styles.statBoxLabel}>Orders</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statBoxNumber}>₹2.8L</Text>
+            <Text style={styles.statBoxLabel}>Earnings</Text>
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+
+  // Shop Dashboard Screen
+  const renderShopScreen = () => (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.screenHeader}>
+        <TouchableOpacity onPress={() => setCurrentScreen('home')}>
+          <Text style={styles.backButton}>← Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.screenTitle}>Bulk Orders</Text>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.shopContent}>
+        <View style={styles.infoCard}>
+          <Text style={styles.infoTitle}>Create Bulk Order</Text>
+          <Text style={styles.infoText}>Select multiple products from different farmers</Text>
+          <TouchableOpacity style={styles.primaryButton}>
+            <Text style={styles.primaryButtonText}>Create Bulk Order</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.statsGrid}>
+          <View style={styles.statBox}>
+            <Text style={styles.statBoxNumber}>12</Text>
+            <Text style={styles.statBoxLabel}>Orders</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statBoxNumber}>₹5L</Text>
+            <Text style={styles.statBoxLabel}>Spent</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statBoxNumber}>14</Text>
+            <Text style={styles.statBoxLabel}>Suppliers</Text>
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+
+  // Trader Dashboard Screen
+  const renderTraderScreen = () => (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.screenHeader}>
+        <TouchableOpacity onPress={() => setCurrentScreen('home')}>
+          <Text style={styles.backButton}>← Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.screenTitle}>Trading</Text>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.traderContent}>
+        <View style={styles.traderActions}>
+          <TouchableOpacity style={styles.traderButton}>
+            <Text style={styles.traderButtonText}>📥 Buy from Farmers</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.traderButton}>
+            <Text style={styles.traderButtonText}>📤 Sell to Retailers</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.statsGrid}>
+          <View style={styles.statBox}>
+            <Text style={styles.statBoxNumber}>45</Text>
+            <Text style={styles.statBoxLabel}>Inventory Items</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statBoxNumber}>120T</Text>
+            <Text style={styles.statBoxLabel}>Capacity</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statBoxNumber}>₹15L</Text>
+            <Text style={styles.statBoxLabel}>Profit</Text>
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+
+  // Admin Dashboard Screen
+  const renderAdminScreen = () => (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.screenHeader}>
+        <TouchableOpacity onPress={() => setCurrentScreen('home')}>
+          <Text style={styles.backButton}>← Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.screenTitle}>Admin Dashboard</Text>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.adminContent}>
+        <View style={styles.statsGrid}>
+          <View style={styles.statBox}>
+            <Text style={styles.statBoxNumber}>4</Text>
+            <Text style={styles.statBoxLabel}>Total Users</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statBoxNumber}>6</Text>
+            <Text style={styles.statBoxLabel}>Products</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statBoxNumber}>0</Text>
+            <Text style={styles.statBoxLabel}>Orders</Text>
+          </View>
+        </View>
+
+        <View style={styles.adminActions}>
+          <TouchableOpacity style={styles.adminButton}>
+            <Text style={styles.adminButtonText}>👥 Manage Users</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.adminButton}>
+            <Text style={styles.adminButtonText}>✅ Verify Farmers</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.adminButton}>
+            <Text style={styles.adminButtonText}>💰 Commission Settings</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.adminButton}>
+            <Text style={styles.adminButtonText}>📊 Analytics</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+
+  // Orders Screen
+  const renderOrdersScreen = () => (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.screenHeader}>
+        <TouchableOpacity onPress={() => setCurrentScreen('home')}>
+          <Text style={styles.backButton}>← Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.screenTitle}>My Orders</Text>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.ordersContent}>
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyIcon}>📭</Text>
+          <Text style={styles.emptyText}>No orders yet</Text>
+          <TouchableOpacity style={styles.primaryButton}>
+            <Text style={styles.primaryButtonText}>Start Ordering</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+
+  // Route handler
+  switch (currentScreen) {
+    case 'auth':
+      return renderAuthScreen();
+    case 'home':
+      return user ? renderHomeScreen() : renderAuthScreen();
+    case 'products':
+      return renderProductsScreen();
+    case 'orders':
+      return renderOrdersScreen();
+    case 'farmer':
+      return renderFarmerScreen();
+    case 'shop':
+      return renderShopScreen();
+    case 'trader':
+      return renderTraderScreen();
+    case 'admin':
+      return renderAdminScreen();
+    default:
+      return renderAuthScreen();
+  }
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
     backgroundColor: '#f5f9f5',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  authContainer: {
+    paddingVertical: 40,
     paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 12,
   },
-  appName: {
-    fontSize: 28,
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  appTitle: {
+    fontSize: 40,
     fontWeight: '800',
-    color: '#143d2d',
-  },
-  location: {
-    fontSize: 14,
-    fontWeight: '700',
     color: '#1d7a4e',
-    backgroundColor: '#e8f5ea',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    marginBottom: 8,
   },
-  contentSection: {
-    flex: 1,
-    paddingBottom: 20,
-  },
-  heroCard: {
-    marginHorizontal: 20,
-    backgroundColor: '#1e7b4d',
-    borderRadius: 22,
-    padding: 20,
-  },
-  heroSmall: {
-    color: '#dffaf1',
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    marginBottom: 10,
-  },
-  heroTitle: {
-    color: '#fff',
-    fontSize: 28,
-    fontWeight: '800',
-    marginBottom: 10,
-  },
-  heroText: {
-    color: '#edfdf6',
+  subtitle: {
     fontSize: 14,
-    lineHeight: 22,
-    marginBottom: 18,
+    color: '#5f6d73',
+    fontWeight: '600',
   },
-  primaryButton: {
-    backgroundColor: '#fff',
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  primaryButtonText: {
-    color: '#1d7a4d',
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 20,
-    marginTop: 18,
-    gap: 10,
-  },
-  statCard: {
-    width: '47%',
+  authCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
-    padding: 16,
-    marginBottom: 10,
+    padding: 24,
+    marginBottom: 32,
     shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    elevation: 5,
   },
-  statValue: {
+  authTitle: {
     fontSize: 20,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#1d2d2d',
+    marginBottom: 20,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#e0e6e0',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 16,
+    fontSize: 15,
+    backgroundColor: '#f9fbf9',
+  },
+  loginButton: {
+    backgroundColor: '#1d7a4e',
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  loginButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  demoText: {
+    textAlign: 'center',
+    color: '#5f6d73',
+    fontSize: 12,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#1d7a4e',
   },
   statLabel: {
     fontSize: 12,
     color: '#5f6d73',
     marginTop: 4,
   },
-  sectionHeading: {
-    paddingHorizontal: 20,
-    marginTop: 18,
-    marginBottom: 12,
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#16382d',
-  },
-  featureCard: {
-    width: 220,
-    backgroundColor: '#fff',
-    borderRadius: 18,
-    marginRight: 12,
-    padding: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  featureImage: {
-    width: '100%',
-    height: 120,
-    borderRadius: 12,
-  },
-  cardTitle: {
-    marginTop: 12,
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1d2d2d',
-  },
-  cardText: {
-    marginTop: 4,
-    color: '#1d7a4e',
-    fontWeight: '800',
-  },
-  secondaryButton: {
-    marginTop: 12,
-    backgroundColor: '#eaf7ef',
-    paddingVertical: 10,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  secondaryButtonText: {
-    color: '#1d7a4e',
-    fontWeight: '700',
-  },
-  productCard: {
-    marginHorizontal: 20,
-    marginBottom: 14,
-    backgroundColor: '#fff',
-    borderRadius: 18,
-    padding: 10,
-    flexDirection: 'row',
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  productImage: {
-    width: 110,
-    height: 110,
-    borderRadius: 12,
-  },
-  productInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  productHeaderRow: {
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e6eee6',
   },
-  productTitle: {
-    fontSize: 17,
+  greeting: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1d2d2d',
+  },
+  role: {
+    fontSize: 12,
+    color: '#1d7a4e',
+    marginTop: 4,
+  },
+  logoutButton: {
+    color: '#d32f2f',
+    fontWeight: '700',
+  },
+  homeContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+  },
+  heroSection: {
+    backgroundColor: '#1d7a4e',
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 24,
+  },
+  heroTitle: {
+    fontSize: 24,
     fontWeight: '800',
-    color: '#1b2d2d',
-    flexShrink: 1,
+    color: '#fff',
+    marginBottom: 8,
+  },
+  heroText: {
+    fontSize: 14,
+    color: '#eafaf1',
+  },
+  quickActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  actionButton: {
+    width: '48%',
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  actionIcon: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  actionLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1d2d2d',
+    textAlign: 'center',
+  },
+  screenHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e6eee6',
+  },
+  backButton: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1d7a4e',
+    marginRight: 12,
+  },
+  screenTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1d2d2d',
+    flex: 1,
+  },
+  productsList: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  productCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#1d7a4e',
+  },
+  productName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1d2d2d',
+  },
+  productCategory: {
+    fontSize: 12,
+    color: '#5f6d73',
+    marginTop: 4,
   },
   productPrice: {
     fontSize: 16,
     fontWeight: '800',
     color: '#1d7a4e',
+    marginTop: 8,
   },
-  metaText: {
+  productStock: {
     fontSize: 12,
-    color: '#59666d',
+    color: '#5f6d73',
     marginTop: 4,
   },
-  productFooterRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  ratingText: {
-    fontSize: 12,
-    color: '#545d65',
-    fontWeight: '700',
-  },
-  orderCard: {
-    marginHorizontal: 20,
-    borderRadius: 16,
-    backgroundColor: '#fff',
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  orderItem: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#1b2d2d',
-  },
-  orderStatus: {
-    marginTop: 6,
-    color: '#1d7a4e',
-    fontWeight: '700',
-  },
-  orderTotal: {
-    marginTop: 8,
-    fontWeight: '800',
-    color: '#1d2d2d',
-  },
-  profileCard: {
-    marginHorizontal: 20,
-    backgroundColor: '#fff',
-    borderRadius: 18,
-    padding: 18,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  profileTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#1d2d2d',
-    marginBottom: 12,
-  },
-  input: {
-    backgroundColor: '#f3f7f3',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    marginBottom: 12,
-    color: '#1d2d2d',
-  },
-  tabBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 12,
-    paddingBottom: 18,
-    backgroundColor: '#ffffff',
-    borderTopWidth: 1,
-    borderTopColor: '#e6eee6',
-  },
-  tabButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 999,
-  },
-  tabButtonActive: {
+  addButton: {
     backgroundColor: '#eaf7ef',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginTop: 12,
   },
-  tabText: {
-    color: '#5d6467',
+  addButtonText: {
+    color: '#1d7a4e',
     fontWeight: '700',
   },
-  tabTextActive: {
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#5f6d73',
+    marginBottom: 16,
+  },
+  primaryButton: {
+    backgroundColor: '#1d7a4e',
+    borderRadius: 10,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  primaryButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  farmerContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  infoCard: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 18,
+    marginBottom: 20,
+  },
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1d2d2d',
+    marginBottom: 12,
+  },
+  infoText: {
+    fontSize: 13,
+    color: '#5f6d73',
+    marginBottom: 16,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  statBox: {
+    width: '31%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 14,
+    alignItems: 'center',
+  },
+  statBoxNumber: {
+    fontSize: 18,
+    fontWeight: '800',
     color: '#1d7a4e',
+  },
+  statBoxLabel: {
+    fontSize: 11,
+    color: '#5f6d73',
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  shopContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  traderContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  traderActions: {
+    gap: 12,
+    marginBottom: 20,
+  },
+  traderButton: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderLeftWidth: 4,
+    borderLeftColor: '#1d7a4e',
+  },
+  traderButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1d2d2d',
+  },
+  adminContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  adminActions: {
+    gap: 12,
+    marginTop: 20,
+  },
+  adminButton: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#ff9800',
+  },
+  adminButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1d2d2d',
+  },
+  ordersContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 40,
   },
 });

@@ -7,11 +7,12 @@ dotenv.config();
 const app = express();
 const port = Number(process.env.PORT) || 4000;
 const district = process.env.DISTRICT || 'Lucknow';
+const state = process.env.STATE || 'Uttar Pradesh';
 
 app.use(cors());
 app.use(express.json());
 
-// Sample data
+// In-memory database (replace with real PostgreSQL + Prisma later)
 const users: any[] = [
   {
     id: 'u1',
@@ -20,8 +21,8 @@ const users: any[] = [
     phone: '9876543210',
     role: 'FARMER',
     district,
-    state: 'Uttar Pradesh',
-    profileImage: null,
+    state,
+    verified: true,
   },
   {
     id: 'u2',
@@ -30,8 +31,8 @@ const users: any[] = [
     phone: '9876543211',
     role: 'CUSTOMER',
     district,
-    state: 'Uttar Pradesh',
-    profileImage: null,
+    state,
+    verified: true,
   },
   {
     id: 'u3',
@@ -40,8 +41,8 @@ const users: any[] = [
     phone: '9876543212',
     role: 'SHOP_OWNER',
     district,
-    state: 'Uttar Pradesh',
-    profileImage: null,
+    state,
+    verified: true,
   },
   {
     id: 'u4',
@@ -50,8 +51,18 @@ const users: any[] = [
     phone: '9876543213',
     role: 'TRADER',
     district,
-    state: 'Uttar Pradesh',
-    profileImage: null,
+    state,
+    verified: true,
+  },
+  {
+    id: 'u5',
+    name: 'Admin',
+    email: 'admin@farmlink.in',
+    phone: '9876543214',
+    role: 'ADMIN',
+    district,
+    state,
+    verified: true,
   },
 ];
 
@@ -66,6 +77,8 @@ const farmers: any[] = [
     rating: 4.8,
     totalOrders: 145,
     productsCount: 6,
+    bankAccount: '1234567890',
+    earnings: 280000,
   },
 ];
 
@@ -78,61 +91,45 @@ const products: any[] = [
     description: 'Premium quality wheat from Lucknow farms',
     unit: 'kg',
     pricePerUnit: 42,
-    minOrderQuantity: 1,
     stockQuantity: 500,
     qualityGrade: 'A',
-    images: ['https://images.unsplash.com/photo-1576045057995-568f588f82fb?auto=format&fit=crop&w=900&q=80'],
-    active: true,
-    ratingCount: 0,
-    totalRating: 0,
+    farmer: 'Ramesh Verma',
   },
   {
     id: 'p2',
     farmerId: 'f1',
     category: 'Vegetables',
     name: 'Pink Onion',
-    description: 'Fresh pink onions from local farms',
+    description: 'Fresh pink onions',
     unit: 'kg',
     pricePerUnit: 30,
-    minOrderQuantity: 1,
     stockQuantity: 1200,
     qualityGrade: 'A',
-    images: ['https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=900&q=80'],
-    active: true,
-    ratingCount: 0,
-    totalRating: 0,
+    farmer: 'Ramesh Verma',
   },
   {
     id: 'p3',
     farmerId: 'f1',
     category: 'Spices',
     name: 'Dry Chili',
-    description: 'Premium dry chili from Lucknow region',
+    description: 'Premium dry chili',
     unit: 'kg',
     pricePerUnit: 180,
-    minOrderQuantity: 1,
     stockQuantity: 450,
     qualityGrade: 'A',
-    images: ['https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=900&q=80'],
-    active: true,
-    ratingCount: 0,
-    totalRating: 0,
+    farmer: 'Ramesh Verma',
   },
   {
     id: 'p4',
     farmerId: 'f1',
     category: 'Fruits',
     name: 'Banana',
-    description: 'Fresh bananas from local orchards',
+    description: 'Fresh bananas',
     unit: 'dozen',
     pricePerUnit: 55,
-    minOrderQuantity: 1,
     stockQuantity: 2100,
     qualityGrade: 'A',
-    images: ['https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?auto=format&fit=crop&w=900&q=80'],
-    active: true,
-    ratingCount: 0,
-    totalRating: 0,
+    farmer: 'Ramesh Verma',
   },
   {
     id: 'p5',
@@ -142,13 +139,9 @@ const products: any[] = [
     description: 'Pure turmeric powder',
     unit: 'kg',
     pricePerUnit: 160,
-    minOrderQuantity: 1,
     stockQuantity: 650,
     qualityGrade: 'A',
-    images: ['https://images.unsplash.com/photo-1601493700631-2b16ec4b4716?auto=format&fit=crop&w=900&q=80'],
-    active: true,
-    ratingCount: 0,
-    totalRating: 0,
+    farmer: 'Ramesh Verma',
   },
   {
     id: 'p6',
@@ -158,21 +151,15 @@ const products: any[] = [
     description: 'Sweet and juicy mangoes',
     unit: 'kg',
     pricePerUnit: 120,
-    minOrderQuantity: 1,
     stockQuantity: 950,
     qualityGrade: 'A',
-    images: ['https://images.unsplash.com/photo-1553279768-865429fa0078?auto=format&fit=crop&w=900&q=80'],
-    active: true,
-    ratingCount: 0,
-    totalRating: 0,
+    farmer: 'Ramesh Verma',
   },
 ];
 
 const orders: any[] = [];
-const shops: any[] = [];
-const traders: any[] = [];
 
-// Auth endpoints
+// ============ AUTH ENDPOINTS ============
 app.post('/api/auth/login', (req: Request, res: Response) => {
   const { email, password } = req.body;
 
@@ -188,8 +175,14 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
 
   return res.status(200).json({
     message: 'Login successful',
-    user,
-    token: 'fake-jwt-token-' + user.id,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      district: user.district,
+    },
+    token: `jwt-token-${user.id}`,
   });
 });
 
@@ -211,8 +204,8 @@ app.post('/api/auth/signup', (req: Request, res: Response) => {
     phone,
     role,
     district,
-    state: 'Uttar Pradesh',
-    profileImage: null,
+    state,
+    verified: false,
   };
 
   users.push(newUser);
@@ -223,21 +216,26 @@ app.post('/api/auth/signup', (req: Request, res: Response) => {
   });
 });
 
-// Product endpoints
+// ============ PRODUCT ENDPOINTS ============
 app.get('/api/products', (req: Request, res: Response) => {
   const { category, search } = req.query;
 
-  let filtered = products;
+  let filtered = [...products];
 
   if (category) {
     filtered = filtered.filter((p) => p.category === category);
   }
 
   if (search) {
-    filtered = filtered.filter((p) => p.name.toLowerCase().includes(String(search).toLowerCase()));
+    filtered = filtered.filter((p) =>
+      p.name.toLowerCase().includes(String(search).toLowerCase())
+    );
   }
 
-  return res.status(200).json({ products: filtered, total: filtered.length });
+  return res.status(200).json({
+    products: filtered,
+    total: filtered.length,
+  });
 });
 
 app.get('/api/products/:id', (req: Request, res: Response) => {
@@ -250,23 +248,17 @@ app.get('/api/products/:id', (req: Request, res: Response) => {
   return res.status(200).json({ product });
 });
 
-// Farmer endpoints
-app.get('/api/farmers/:id', (req: Request, res: Response) => {
-  const farmer = farmers.find((f) => f.id === req.params.id);
+app.post('/api/products', (req: Request, res: Response) => {
+  const { farmerId, name, category, description, unit, pricePerUnit, stockQuantity } = req.body;
+
+  if (!farmerId || !name || !category || !unit || !pricePerUnit) {
+    return res.status(400).json({ message: 'Missing required fields' });
+  }
+
+  const farmer = farmers.find((f) => f.id === farmerId);
 
   if (!farmer) {
     return res.status(404).json({ message: 'Farmer not found' });
-  }
-
-  return res.status(200).json({ farmer });
-});
-
-app.post('/api/farmers/:id/products', (req: Request, res: Response) => {
-  const { name, category, description, unit, pricePerUnit, stockQuantity } = req.body;
-  const farmerId = req.params.id;
-
-  if (!name || !category || !unit || !pricePerUnit || !stockQuantity) {
-    return res.status(400).json({ message: 'Missing required fields' });
   }
 
   const newProduct = {
@@ -277,16 +269,13 @@ app.post('/api/farmers/:id/products', (req: Request, res: Response) => {
     description,
     unit,
     pricePerUnit: Number(pricePerUnit),
-    minOrderQuantity: 1,
     stockQuantity: Number(stockQuantity),
     qualityGrade: 'A',
-    images: [],
-    active: true,
-    ratingCount: 0,
-    totalRating: 0,
+    farmer: farmer.farmName,
   };
 
   products.push(newProduct);
+  farmer.productsCount += 1;
 
   return res.status(201).json({
     message: 'Product created successfully',
@@ -294,7 +283,42 @@ app.post('/api/farmers/:id/products', (req: Request, res: Response) => {
   });
 });
 
-// Order endpoints
+// ============ FARMER ENDPOINTS ============
+app.get('/api/farmers/:id', (req: Request, res: Response) => {
+  const farmer = farmers.find((f) => f.id === req.params.id);
+
+  if (!farmer) {
+    return res.status(404).json({ message: 'Farmer not found' });
+  }
+
+  return res.status(200).json({ farmer });
+});
+
+app.get('/api/farmers/:id/products', (req: Request, res: Response) => {
+  const farmerId = req.params.id;
+  const farmerProducts = products.filter((p) => p.farmerId === farmerId);
+
+  return res.status(200).json({
+    farmerId,
+    products: farmerProducts,
+  });
+});
+
+app.get('/api/farmers/:id/earnings', (req: Request, res: Response) => {
+  const farmer = farmers.find((f) => f.id === req.params.id);
+
+  if (!farmer) {
+    return res.status(404).json({ message: 'Farmer not found' });
+  }
+
+  return res.status(200).json({
+    farmerId: farmer.id,
+    totalEarnings: farmer.earnings,
+    totalOrders: farmer.totalOrders,
+  });
+});
+
+// ============ ORDER ENDPOINTS ============
 app.post('/api/orders', (req: Request, res: Response) => {
   const { farmerId, buyerId, buyerType, items, totalAmount, paymentMethod } = req.body;
 
@@ -319,6 +343,12 @@ app.post('/api/orders', (req: Request, res: Response) => {
   };
 
   orders.push(newOrder);
+
+  const farmer = farmers.find((f) => f.id === farmerId);
+  if (farmer) {
+    farmer.totalOrders += 1;
+    farmer.earnings += totalAmount * 0.9; // 90% to farmer
+  }
 
   return res.status(201).json({
     message: 'Order created successfully',
@@ -347,123 +377,149 @@ app.patch('/api/orders/:id/status', (req: Request, res: Response) => {
   order.status = status;
   order.updatedAt = new Date();
 
-  return res.status(200).json({ message: 'Order updated', order });
-});
-
-// Shop endpoints
-app.post('/api/shops/register', (req: Request, res: Response) => {
-  const { userId, shopName, gstNumber, address } = req.body;
-
-  if (!userId || !shopName || !address) {
-    return res.status(400).json({ message: 'Missing required fields' });
-  }
-
-  const newShop = {
-    id: `s${shops.length + 1}`,
-    userId,
-    shopName,
-    gstNumber,
-    address,
-    city: district,
-    creditLimit: 50000,
-    creditUsed: 0,
-    rating: 0,
-    verified: false,
-  };
-
-  shops.push(newShop);
-
-  return res.status(201).json({
-    message: 'Shop registered successfully',
-    shop: newShop,
+  return res.status(200).json({
+    message: 'Order updated successfully',
+    order,
   });
 });
 
-app.post('/api/shops/:id/bulk-order', (req: Request, res: Response) => {
-  const { items, deliveryDate } = req.body;
-  const shopId = req.params.id;
+// ============ SHOP ENDPOINTS ============
+app.post('/api/shops/bulk-order', (req: Request, res: Response) => {
+  const { shopId, items, deliveryDate } = req.body;
 
-  if (!items || items.length === 0) {
+  if (!shopId || !items || items.length === 0) {
     return res.status(400).json({ message: 'No items in order' });
   }
 
+  let totalAmount = 0;
+  const orderItems: any[] = [];
+
+  items.forEach((item: any) => {
+    const product = products.find((p) => p.id === item.productId);
+    if (product) {
+      const itemTotal = product.pricePerUnit * item.quantity;
+      totalAmount += itemTotal;
+      orderItems.push({
+        productId: item.productId,
+        productName: product.name,
+        quantity: item.quantity,
+        price: product.pricePerUnit,
+        total: itemTotal,
+      });
+    }
+  });
+
   const order = {
     id: `o${orders.length + 1}`,
-    orderNumber: `BLK-${Date.now()}`,
+    orderNumber: `BULK-${Date.now()}`,
     shopId,
     buyerType: 'SHOP',
-    items,
+    items: orderItems,
+    totalAmount,
     status: 'PENDING',
     deliveryDate,
+    createdAt: new Date(),
   };
 
   orders.push(order);
 
   return res.status(201).json({
-    message: 'Bulk order created',
+    message: 'Bulk order created successfully',
     order,
   });
 });
 
-// Trader endpoints
-app.post('/api/traders/register', (req: Request, res: Response) => {
-  const { userId, companyName, warehouseAddress } = req.body;
+// ============ TRADER ENDPOINTS ============
+app.post('/api/traders/buy', (req: Request, res: Response) => {
+  const { traderId, farmerId, items } = req.body;
 
-  if (!userId || !companyName || !warehouseAddress) {
+  if (!traderId || !farmerId || !items) {
     return res.status(400).json({ message: 'Missing required fields' });
   }
 
-  const newTrader = {
-    id: `t${traders.length + 1}`,
-    userId,
-    companyName,
-    warehouseAddress,
-    warehouseCity: district,
-    storageCapacity: 100,
-    verified: false,
-    rating: 0,
+  let totalAmount = 0;
+  items.forEach((item: any) => {
+    const product = products.find((p) => p.id === item.productId);
+    if (product) {
+      totalAmount += product.pricePerUnit * item.quantity;
+    }
+  });
+
+  const order = {
+    id: `o${orders.length + 1}`,
+    orderNumber: `TRD-BUY-${Date.now()}`,
+    traderId,
+    farmerId,
+    buyerType: 'TRADER',
+    items,
+    totalAmount,
+    status: 'PENDING',
   };
 
-  traders.push(newTrader);
+  orders.push(order);
 
   return res.status(201).json({
-    message: 'Trader registered successfully',
-    trader: newTrader,
+    message: 'Trader purchase order created',
+    order,
   });
 });
 
-app.get('/api/traders/:id/inventory', (req: Request, res: Response) => {
-  const traderId = req.params.id;
-
-  return res.status(200).json({
-    traderId,
-    inventory: [],
-  });
-});
-
-// Admin endpoints
+// ============ ADMIN ENDPOINTS ============
 app.get('/api/admin/dashboard', (req: Request, res: Response) => {
   return res.status(200).json({
-    totalUsers: users.length,
-    totalProducts: products.length,
-    totalOrders: orders.length,
-    totalFarmers: farmers.length,
-    district,
-    state: 'Uttar Pradesh',
+    dashboard: {
+      totalUsers: users.length,
+      totalProducts: products.length,
+      totalOrders: orders.length,
+      totalFarmers: farmers.length,
+      district,
+      state,
+      gmv: orders.reduce((sum: number, o: any) => sum + o.totalAmount, 0),
+    },
   });
 });
 
+app.get('/api/admin/users', (req: Request, res: Response) => {
+  return res.status(200).json({ users });
+});
+
+app.patch('/api/admin/users/:id/verify', (req: Request, res: Response) => {
+  const user = users.find((u) => u.id === req.params.id);
+
+  if (!user) {
+    return res.status(404).json({ message: 'User not found' });
+  }
+
+  user.verified = true;
+
+  return res.status(200).json({
+    message: 'User verified successfully',
+    user,
+  });
+});
+
+// ============ HEALTH CHECK ============
 app.get('/api/health', (_req: Request, res: Response) => {
   res.status(200).json({
     status: 'ok',
     service: 'farm-link-api',
     district,
+    state,
+    version: '1.0.0',
     timestamp: new Date(),
   });
 });
 
+// ============ ERROR HANDLING ============
+app.use((_req: Request, res: Response) => {
+  res.status(404).json({ message: 'Route not found' });
+});
+
 app.listen(port, () => {
-  console.log(`🚀 FarmLink API running on http://localhost:${port}`);
+  console.log(`
+🚀 FarmLink API v1.0.0`);
   console.log(`📍 District: ${district}`);
-  console.log(`API ready for mobile app connections`);
+  console.log(`🌍 State: ${state}`);
+  console.log(`🔗 Running on http://localhost:${port}`);
+  console.log(`✅ All modules ready: Auth, Products, Farmer, Shop, Trader, Admin\n`);
 });
